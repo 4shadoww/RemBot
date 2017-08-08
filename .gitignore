@@ -1,0 +1,5 @@
+user_config.py
+!logs/.gitkeep
+logs/*.log
+test.py
+__pycache__
