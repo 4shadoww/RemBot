@@ -168,6 +168,9 @@ def main():
     if len(cats) > 0:
         logger.info("purging categories")
         purge_cats()
+    if len(titles) > 0:
+        logger.info("purging templates")
+        purge_tems()
 
     logger.info("done")
 
