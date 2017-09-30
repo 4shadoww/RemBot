@@ -15,6 +15,7 @@ def main_path():
     return os.path.dirname(os.path.abspath(sys.modules['__main__'].__file__)) + "/"
 
 # Init global variables
+clear_do = False
 cats = []
 titles = []
 tems = []
@@ -73,7 +74,7 @@ def load_config(path):
     params = {
         "action": "query",
         "prop": "revisions",
-        "titles": bot_config.refresh_list,
+        "titles": path,
         "rvprop": "content"
     }
     query = session.get(params)["query"]["pages"]
@@ -124,16 +125,20 @@ def should_purge(timestr):
         return False
 
     return True
+
+def value2list(value):
+    logger.info("listing %s" % value)
+    if langdict[bot_config.lang]["cat"].lower() in value.lower():
+        cats.append(value)
+    elif langdict[bot_config.lang]["tem"].lower() in value.lower():
+        tems.append(value)
+    else:
+        titles.append(value)
+
 # Add titles to lists
-def add2list(tlist):
+def list2list(tlist):
     for value in tlist:
-        logger.info("listing %s" % value)
-        if langdict[bot_config.lang]["cat"].lower() in value.lower():
-            cats.append(value)
-        elif langdict[bot_config.lang]["tem"].lower() in value.lower():
-            tems.append(value)
-        else:
-            titles.append(value)
+        value2list(value)
 
 # Check should purge
 def pages2purge():
@@ -141,17 +146,19 @@ def pages2purge():
     for value in config:
         if should_purge(value):
             logger.info("found schedule for purge %s" % value)
-            add2list(config[value])
+            list2list(config[value])
 
-    if(do_status != "[ERR]: "):
+    if(do_status):
         for value in do_once:
-            if should_purge(value):
-                clear_do = True
-                logger.info("found schedule for purge %s" % value)
-                add2list(config[value])
+            clear_do = True
+            logger.info("found do once schedule for purge %s" % value)
+            value2list(value)
+
+def get_token():
+    return session.get(action="query", meta="tokens")["query"]["tokens"]["csrftoken"]
 
 def clear_do_once():
-    session.post(action="edit", title=bot_config.do_once, text="", summary=do_status+langdict[bot_config.lang]["do_desc"], minor=True, bot=True)
+    session.post(action="edit", title=bot_config.do_once, text="[]", summary=do_status+langdict[bot_config.lang]["do_desc"], minor=True, bot=True, token=get_token())
 
 def main():
     try:
@@ -166,6 +173,7 @@ def main():
         login()
 
         logger.info("downloading refresh list from %s" % bot_config.refresh_list)
+        logger.info("downloading do once list from %s" %bot_config.do_once)
         # Load config
         config = load_config(bot_config.refresh_list)
         do_once = load_config(bot_config.do_once)
@@ -179,7 +187,7 @@ def main():
             do_once = json.loads(do_once)
             do_status = "[OK]: "
         except:
-            do_status = "[ERR]: "
+            do_status = False
         logger.info("listing pages for purge")
         pages2purge()
 
@@ -189,7 +197,7 @@ def main():
         if len(cats) > 0:
             logger.info("purging categories")
             purge_cats()
-        if len(titles) > 0:
+        if len(tems) > 0:
             logger.info("purging templates")
             purge_tems()
 
