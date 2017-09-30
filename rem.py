@@ -4,6 +4,7 @@ import json
 import datetime
 import os
 import sys
+import traceback
 
 import mwapi
 
@@ -136,43 +137,71 @@ def add2list(tlist):
 
 # Check should purge
 def pages2purge():
+    global clear_do
     for value in config:
         if should_purge(value):
             logger.info("found schedule for purge %s" % value)
             add2list(config[value])
 
+    if(do_status != "[ERR]: "):
+        for value in do_once:
+            if should_purge(value):
+                clear_do = True
+                logger.info("found schedule for purge %s" % value)
+                add2list(config[value])
+
+def clear_do_once():
+    session.post(action="edit", title=bot_config.do_once, text="", summary=do_status+langdict[bot_config.lang]["do_desc"], minor=True, bot=True)
 
 def main():
-    # Global variables
-    global config
-    setup_logging()
-    logger.info("logging in...")
-    # Login
-    login()
+    try:
+        # Global variables
+        global config
+        global do_once
+        global do_status
+        # Log
+        setup_logging()
+        logger.info("logging in...")
+        # Login
+        login()
 
-    logger.info("downloading refresh list from %s" % bot_config.refresh_list)
-    # Load config
-    config = load_config(bot_config.refresh_list)
-    # If config not loaded exit
-    if not config:
-        logger.error("failed to download refresh list")
-        return 1
+        logger.info("downloading refresh list from %s" % bot_config.refresh_list)
+        # Load config
+        config = load_config(bot_config.refresh_list)
+        do_once = load_config(bot_config.do_once)
+        # If config not loaded exit
+        if not config:
+            logger.error("failed to download refresh list")
+            return 1
 
-    config = json.loads(config)
-    logger.info("listing pages for purge")
-    pages2purge()
+        config = json.loads(config)
+        try:
+            do_once = json.loads(do_once)
+            do_status = "[OK]: "
+        except:
+            do_status = "[ERR]: "
+        logger.info("listing pages for purge")
+        pages2purge()
 
-    if len(titles) > 0:
-        logger.info("purging pages")
-        purge_pages()
-    if len(cats) > 0:
-        logger.info("purging categories")
-        purge_cats()
-    if len(titles) > 0:
-        logger.info("purging templates")
-        purge_tems()
+        if len(titles) > 0:
+            logger.info("purging pages")
+            purge_pages()
+        if len(cats) > 0:
+            logger.info("purging categories")
+            purge_cats()
+        if len(titles) > 0:
+            logger.info("purging templates")
+            purge_tems()
 
-    logger.info("done")
+        if(clear_do):
+            clear_do_once()
+
+        logger.info("done")
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt")
+    except:
+        logger.error("error: faced unexcepted error check crash report")
+        logger.critical(traceback.format_exc())
 
 if __name__ == "__main__":
     main()
