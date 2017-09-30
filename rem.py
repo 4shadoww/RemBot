@@ -104,16 +104,16 @@ def param_maker(values):
 # Purge cats
 def purge_cats():
     for cat in cats:
-        session.post(action="purge", generator="categorymembers", gcmtitle=cat, gcmprop="title", gcmlimit=5000, forcelinkupdate=True)
+        session.post(action="purge", generator="categorymembers", gcmtitle=cat, gcmprop="title", gcmlimit=5000)
 
 # Purge templates
 def purge_tems():
     for tem in tems:
-        session.post(action="purge", generator="embeddedin", geititle=tem, geilimit=5000, forcelinkupdate=True)
+        session.post(action="purge", generator="embeddedin", geititle=tem, geilimit=5000)
 
 # Purge pages
 def purge_pages():
-    session.post(action="purge", titles=param_maker(titles), forcelinkupdate=True)
+    session.post(action="purge", titles=param_maker(titles))
 
 def should_purge(timestr):
     now = datetime.datetime.now()
