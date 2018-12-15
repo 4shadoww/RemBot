@@ -75,7 +75,8 @@ def load_config(path):
         "action": "query",
         "prop": "revisions",
         "titles": path,
-        "rvprop": "content"
+        "rvprop": "content",
+        "rvslots": "main"
     }
     query = session.get(params)["query"]["pages"]
     for pageid in query:
@@ -83,7 +84,7 @@ def load_config(path):
             return False
         if "revisions" not in query[pageid]:
             return False
-        return query[pageid]["revisions"][0]["*"]
+        return query[pageid]["revisions"][0]["slots"]["main"]["*"]
 
     return False
 
@@ -128,9 +129,11 @@ def should_purge(timestr):
 
 def value2list(value):
     logger.info("listing %s" % value)
-    if langdict[bot_config.lang]["cat"].lower() in value.lower():
+    if ":" is value[0]:
+        titles.append(value)
+    elif value.lower().startswith(langdict[bot_config.lang]["cat"].lower()):
         cats.append(value)
-    elif langdict[bot_config.lang]["tem"].lower() in value.lower():
+    elif value.lower().startswith(langdict[bot_config.lang]["tem"].lower()):
         tems.append(value)
     else:
         titles.append(value)
