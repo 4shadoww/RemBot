@@ -16,6 +16,7 @@ def main_path():
 
 # Init global variables
 clear_do = False
+do_once_failed = False
 cats = []
 titles = []
 tems = []
@@ -66,7 +67,7 @@ def setup_logging():
 # Login
 def login():
     global session
-    session = mwapi.Session(bot_config.site, user_agent="RemBot/1.0", api_path=bot_config.api)
+    session = mwapi.Session(bot_config.site, user_agent="RemBot/1.0", api_path=bot_config.api, timeout=300)
     session.login(user_config.username, user_config.password)
 
 # Load config from the config page
@@ -104,17 +105,53 @@ def param_maker(values):
 
 # Purge cats
 def purge_cats():
+    global do_status
+    global do_once_failed
+
     for cat in cats:
-        session.post(action="purge", generator="categorymembers", gcmtitle=cat, gcmprop="title", gcmlimit=5000, forcelinkupdate=True)
+        try:
+            logger.info("purging: " + cat)
+            session.post(action="purge", generator="categorymembers", gcmtitle=cat, gcmprop="title", gcmlimit=5000, forcelinkupdate=True)
+        except:
+            logger.error("couldn't purge " + cat)
+            logger.critical(traceback.format_exc())
+            if cat in do_once:
+                do_status = "[FAILED]"
+                do_once_failed = True
+            continue
+
 
 # Purge templates
 def purge_tems():
+    global do_status
+    global do_once_failed
+
     for tem in tems:
-        session.post(action="purge", generator="embeddedin", geititle=tem, geilimit=5000, forcelinkupdate=True)
+        try:
+            logger.info("purging: " + tem)
+            session.post(action="purge", generator="embeddedin", geititle=tem, geilimit=5000, forcelinkupdate=True)
+        except:
+            logger.error("couldn't purge " + tem)
+            logger.critical(traceback.format_exc())
+            if tem in do_once:
+                do_status = "[FAILED]"
+                do_once_failed = True
+            continue
 
 # Purge pages
 def purge_pages():
-    session.post(action="purge", titles=param_maker(titles), forcelinkupdate=True)
+    global do_status
+    global do_once_failed
+
+    try:
+        session.post(action="purge", titles=param_maker(titles), forcelinkupdate=True)
+    except:
+        logger.error("couldn't purge pages")
+        logger.critical(traceback.format_exc())
+        for page in do_once:
+            if page in titles:
+                do_status = "[FAILED]"
+                do_once_failed = True
 
 def should_purge(timestr):
     now = datetime.datetime.now()
@@ -129,7 +166,7 @@ def should_purge(timestr):
 
 def value2list(value):
     logger.info("listing %s" % value)
-    if ":" is value[0]:
+    if ":" == value[0]:
         titles.append(value)
     elif value.lower().startswith(langdict[bot_config.lang]["cat"].lower()):
         cats.append(value)
@@ -161,7 +198,10 @@ def get_token():
     return session.get(action="query", meta="tokens")["query"]["tokens"]["csrftoken"]
 
 def clear_do_once():
-    session.post(action="edit", title=bot_config.do_once, text="[]", summary=do_status+langdict[bot_config.lang]["do_desc"], minor=True, bot=True, token=get_token())
+    if not do_once_failed:
+         session.post(action="edit", title=bot_config.do_once, text="[]", summary=do_status+langdict[bot_config.lang]["do_desc"], minor=True, bot=True, token=get_token())
+    else:
+        session.post(action="edit", title=bot_config.do_once, text="[]", summary=do_status, minor=True, bot=True, token=get_token())
 
 def main():
     try:
@@ -197,6 +237,7 @@ def main():
         if len(titles) > 0:
             logger.info("purging pages")
             purge_pages()
+
         if len(cats) > 0:
             logger.info("purging categories")
             purge_cats()
